@@ -4,6 +4,8 @@ import { EXAMPLE_BORROWER } from "../exampleBorrower";
 import { buildFields, toRequestBody, validateValues } from "../formFields";
 import { optionLabel } from "../format";
 import { useApiData } from "../hooks/useApiData";
+import { SlidersIcon } from "./Icons";
+import InfoGuide from "./InfoGuide";
 import PredictionResult from "./PredictionResult";
 import { ErrorNotice, Loading } from "./Status";
 
@@ -59,71 +61,125 @@ export default function PredictForm() {
   };
 
   return (
-    <form onSubmit={submit} noValidate>
-      <div className="form-grid">
-        {fields.map((field) => (
-          <div className="field" key={field.name}>
-            <label htmlFor={field.name}>{field.label}</label>
-            {field.kind === "select" ? (
-              <select
-                id={field.name}
-                value={values[field.name] ?? ""}
-                onChange={(e) => setValue(field.name, e.target.value)}
-                aria-invalid={Boolean(fieldErrors[field.name])}
+    <div className="inference-workspace">
+      <div className="inference-form-col">
+        <form onSubmit={submit} noValidate>
+          <div className="form-head">
+            <div className="form-head-title">
+              <span>Borrower Application Parameters</span>
+              <InfoGuide title="Feature Space Boundaries">
+                <p>
+                  Inputs are validated against dataset boundaries to prevent out-of-distribution
+                  inference errors. Categorical options reflect standardized credit bureau categories.
+                </p>
+              </InfoGuide>
+            </div>
+            <div className="form-head-actions">
+              <button
+                type="button"
+                className="secondary btn-sm"
+                onClick={() => setValues(EXAMPLE_BORROWER)}
               >
-                <option value="">Select…</option>
-                {field.options.map((option) => (
-                  <option key={option} value={option}>
-                    {optionLabel(option)}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                id={field.name}
-                type="number"
-                inputMode="decimal"
-                step={field.integer ? 1 : "any"}
-                min={field.min}
-                max={field.max}
-                value={values[field.name] ?? ""}
-                onChange={(e) => setValue(field.name, e.target.value)}
-                aria-invalid={Boolean(fieldErrors[field.name])}
-              />
-            )}
-            {field.kind === "number" && (
-              <span className="hint">
-                {field.min} to {field.max}
-              </span>
-            )}
-            {fieldErrors[field.name] && (
-              <span className="field-error" role="alert">
-                {fieldErrors[field.name]}
-              </span>
-            )}
+                Fill example values
+              </button>
+              <button type="button" className="secondary btn-sm" onClick={reset}>
+                Clear
+              </button>
+            </div>
           </div>
-        ))}
+
+          <div className="form-grid">
+            {fields.map((field) => (
+              <div className="field" key={field.name}>
+                <div className="field-label-row">
+                  <label htmlFor={field.name}>{field.label}</label>
+                  {field.kind === "number" && (
+                    <span className="hint">
+                      {field.min} to {field.max}
+                    </span>
+                  )}
+                </div>
+                {field.kind === "select" ? (
+                  <select
+                    id={field.name}
+                    value={values[field.name] ?? ""}
+                    onChange={(e) => setValue(field.name, e.target.value)}
+                    aria-invalid={Boolean(fieldErrors[field.name])}
+                  >
+                    <option value="">Select…</option>
+                    {field.options.map((option) => (
+                      <option key={option} value={option}>
+                        {optionLabel(option)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    id={field.name}
+                    type="number"
+                    inputMode="decimal"
+                    step={field.integer ? 1 : "any"}
+                    min={field.min}
+                    max={field.max}
+                    value={values[field.name] ?? ""}
+                    onChange={(e) => setValue(field.name, e.target.value)}
+                    aria-invalid={Boolean(fieldErrors[field.name])}
+                  />
+                )}
+                {fieldErrors[field.name] && (
+                  <span className="field-error" role="alert">
+                    {fieldErrors[field.name]}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {formError && (
+            <p className="notice error" role="alert">
+              {formError}
+            </p>
+          )}
+
+          <div className="actions">
+            <button type="submit" className="primary-btn" disabled={submitting}>
+              {submitting ? "Predicting…" : "Predict"}
+            </button>
+          </div>
+        </form>
       </div>
 
-      {formError && (
-        <p className="notice error" role="alert">
-          {formError}
-        </p>
-      )}
-
-      <div className="actions">
-        <button type="submit" disabled={submitting}>
-          {submitting ? "Predicting…" : "Predict"}
-        </button>
-        <button type="button" className="secondary" onClick={() => setValues(EXAMPLE_BORROWER)}>
-          Fill example values
-        </button>
-        <button type="button" className="secondary" onClick={reset}>
-          Clear
-        </button>
+      <div className="inference-result-col">
+        {result ? (
+          <PredictionResult result={result} />
+        ) : (
+          <div className="result-placeholder">
+            <div className="placeholder-header">
+              <div className="placeholder-icon" aria-hidden="true">
+                <SlidersIcon />
+              </div>
+              <h4>Inference Output</h4>
+            </div>
+            <p className="placeholder-desc">
+              Configure borrower parameters on the left or click <strong>Fill example values</strong>, then submit to generate an approval prediction.
+            </p>
+            <div className="standby-card-specs">
+              <div className="spec-row">
+                <span className="spec-name">Ensemble Model</span>
+                <span className="spec-val">LightGBM (Zhang et al. 2025)</span>
+              </div>
+              <div className="spec-row">
+                <span className="spec-name">Evaluation Metric</span>
+                <span className="spec-val">5-Fold Cross-Validation F1</span>
+              </div>
+              <div className="spec-row">
+                <span className="spec-name">Decision Rule</span>
+                <span className="spec-val">Score &ge; 0.50 &rarr; Approved</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-
-      {result && <PredictionResult result={result} />}
-    </form>
+    </div>
   );
 }

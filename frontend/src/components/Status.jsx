@@ -1,8 +1,9 @@
 export function Loading({ what }) {
   return (
-    <p className="status" role="status">
-      Loading {what}…
-    </p>
+    <div className="status-loader" role="status">
+      <div className="spinner" aria-hidden="true" />
+      <span className="status-text">Loading {what}…</span>
+    </div>
   );
 }
 

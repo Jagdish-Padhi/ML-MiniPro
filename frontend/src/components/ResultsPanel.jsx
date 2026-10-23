@@ -1,6 +1,7 @@
 import { getModelResults } from "../api";
 import { count, metric } from "../format";
 import { useApiData } from "../hooks/useApiData";
+import InfoGuide from "./InfoGuide";
 import { ErrorNotice, Loading } from "./Status";
 
 const COLUMNS = [
@@ -22,81 +23,110 @@ export default function ResultsPanel() {
   const matrix = bestResult.test_metrics.confusion_matrix;
 
   return (
-    <div>
-      <p>
-        Scores on the {count(data.split.test_rows)} test records held out from training
-        (positive class: approved). Cross-validated F1 was measured on the training records
-        and decides the selected model.
-      </p>
+    <div className="results-panel-layout">
+      <div className="benchmark-columns">
+        <div className="benchmark-col-left">
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>
+                    <span>Model</span>
+                    <InfoGuide title="Algorithms Evaluated">
+                      <p>Compares four ensemble models: Random Forest, Gradient Boosting, XGBoost, and LightGBM per Zhang et al. (2025).</p>
+                    </InfoGuide>
+                  </th>
+                  <th className="num">
+                    <span>CV F1</span>
+                    <InfoGuide title="5-Fold Cross-Validation F1">
+                      <p>Primary selection criterion. 5-fold cross-validation balances precision and recall while preventing train-set overfitting.</p>
+                    </InfoGuide>
+                  </th>
+                  {COLUMNS.map(([, label]) => (
+                    <th key={label} className="num">
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(data.models).map(([name, result]) => {
+                  const isBest = name === best;
+                  return (
+                    <tr key={name} className={isBest ? "selected" : undefined}>
+                      <td>
+                        {isBest ? `${name} (selected)` : name}
+                      </td>
+                      <td className="num">{metric(result.cv_f1)}</td>
+                      {COLUMNS.map(([key]) => (
+                        <td key={key} className="num">
+                          {metric(result.test_metrics[key])}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-      <div className="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>Model</th>
-              <th className="num">CV F1</th>
-              {COLUMNS.map(([, label]) => (
-                <th key={label} className="num">
-                  {label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(data.models).map(([name, result]) => (
-              <tr key={name} className={name === best ? "selected" : undefined}>
-                <td>{name === best ? `${name} (selected)` : name}</td>
-                <td className="num">{metric(result.cv_f1)}</td>
-                {COLUMNS.map(([key]) => (
-                  <td key={key} className="num">
-                    {metric(result.test_metrics[key])}
-                  </td>
-                ))}
+        <div className="benchmark-col-right">
+          <h3>
+            <span>{best}: confusion matrix on test set</span>
+            <InfoGuide title="Confusion Matrix Guide">
+              <p>TN: Correctly rejected. FP: Incorrectly approved (risk). FN: Incorrectly rejected (missed loans). TP: Correctly approved.</p>
+            </InfoGuide>
+          </h3>
+          <table className="matrix">
+            <thead>
+              <tr>
+                <th />
+                <th className="num">Predicted rejected</th>
+                <th className="num">Predicted approved</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              <tr>
+                <th>Actually rejected</th>
+                <td className="num">{count(matrix.tn)}</td>
+                <td className="num">{count(matrix.fp)}</td>
+              </tr>
+              <tr>
+                <th>Actually approved</th>
+                <td className="num">{count(matrix.fn)}</td>
+                <td className="num">{count(matrix.tp)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3>
+            <span>Top feature importances</span>
+            <InfoGuide title="Feature Importance">
+              <p>Relative importance measured by Gini split frequency. Shows empirical association with loan approval, not economic causality.</p>
+            </InfoGuide>
+          </h3>
+          <ol className="plain-list">
+            {bestResult.top_features.slice(0, 5).map(({ feature, importance }) => {
+              const cleanName = feature.replace(/^(numeric|categorical)__/, "");
+              const pct = (importance * 100).toFixed(1);
+              return (
+                <li key={feature}>
+                  <span>{cleanName} ({pct}%)</span>
+                  <div className="feature-bar-wrap" aria-hidden="true">
+                    <div className="feature-bar">
+                      <div
+                        className="feature-bar-fill"
+                        style={{ width: `${Math.min(100, Math.max(0, importance * 100))}%` }}
+                      />
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
       </div>
-
-      <p>
-        <strong>Why F1:</strong> only about one in five applications is approved, so accuracy
-        alone can look good for a model that rarely predicts approval. Precision is the share of
-        predicted approvals that were truly approved; recall is the share of truly approved
-        applications the model found; F1 balances the two.
-      </p>
-
-      <h3>{best}: confusion matrix on the test set</h3>
-      <table className="matrix">
-        <thead>
-          <tr>
-            <th />
-            <th className="num">Predicted rejected</th>
-            <th className="num">Predicted approved</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <th>Actually rejected</th>
-            <td className="num">{count(matrix.tn)}</td>
-            <td className="num">{count(matrix.fp)}</td>
-          </tr>
-          <tr>
-            <th>Actually approved</th>
-            <td className="num">{count(matrix.fn)}</td>
-            <td className="num">{count(matrix.tp)}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <h3>Features the selected model relied on most</h3>
-      <p>Importance is specific to this model and shows association, not cause.</p>
-      <ol className="plain-list">
-        {bestResult.top_features.slice(0, 5).map(({ feature, importance }) => (
-          <li key={feature}>
-            {feature.replace(/^(numeric|categorical)__/, "")} ({(importance * 100).toFixed(1)}%)
-          </li>
-        ))}
-      </ol>
     </div>
   );
 }
