@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Local data and generated artifacts
+data/*.csv
+artifacts/*
+!artifacts/.gitkeep
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
